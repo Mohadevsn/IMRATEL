@@ -11,3 +11,6 @@ build/
 .env
 venv/
 .venv/
+*.venv
+*.cl*  
+*.stitch/*
