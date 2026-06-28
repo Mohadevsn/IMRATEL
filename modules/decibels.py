@@ -3,25 +3,26 @@ import customtkinter as ctk
 
 PRIMARY        = "#0056B3"
 DEEP_NAVY      = "#002D62"
+ACCENT_AMBER   = "#F89406"
 SURFACE_CARD   = "#F2F3FC"
 OUTLINE        = "#D9D9E2"
 ON_SURFACE     = "#212529"
 ON_SURFACE_VAR = "#495057"
+WHITE          = "#ffffff"
 OK             = "#27ae60"
 ERR            = "#e74c3c"
-DISABLED_BG    = "#e9ecef"
 RADIUS         = 4
 
 
 # ── Calculs ───────────────────────────────────────────────────────────────────
 
-def db_to_linear(db: float) -> float:
-    return 10 ** (db / 10)
+def db_to_linear(db: float, factor: int = 10) -> float:
+    return 10 ** (db / factor)
 
-def linear_to_db(linear: float) -> float:
+def linear_to_db(linear: float, factor: int = 10) -> float:
     if linear <= 0:
-        raise ValueError("La valeur linéaire doit être strictement positive.")
-    return 10 * math.log10(linear)
+        raise ValueError("La valeur doit être strictement positive.")
+    return factor * math.log10(linear)
 
 def dbm_to_mw(dbm: float) -> float:
     return 10 ** (dbm / 10)
@@ -32,169 +33,184 @@ def mw_to_dbm(mw: float) -> float:
     return 10 * math.log10(mw)
 
 
-# ── Helpers UI ────────────────────────────────────────────────────────────────
-
-def _make_entry(parent, placeholder, textvariable):
-    return ctk.CTkEntry(parent, width=210, placeholder_text=placeholder,
-                        textvariable=textvariable,
-                        font=ctk.CTkFont(size=12),
-                        corner_radius=RADIUS, border_color=OUTLINE,
-                        fg_color="white")
-
-def _make_btn(parent, text, cmd):
-    return ctk.CTkButton(parent, text=text, command=cmd, width=160,
-                         font=ctk.CTkFont(size=12, weight="bold"),
-                         height=38, corner_radius=RADIUS,
-                         fg_color=PRIMARY, hover_color=DEEP_NAVY)
-
-def _make_label(parent, text):
-    return ctk.CTkLabel(parent, text=text, font=ctk.CTkFont(size=12),
-                        text_color=ON_SURFACE)
-
-def _disable(entry: ctk.CTkEntry):
-    entry.configure(state="disabled", fg_color=DISABLED_BG)
-
-def _enable(entry: ctk.CTkEntry):
-    entry.configure(state="normal", fg_color="white")
-
-
 # ── Frame principale ──────────────────────────────────────────────────────────
 
 class DecibelFrame(ctk.CTkFrame):
     def __init__(self, parent):
-        super().__init__(parent, fg_color=SURFACE_CARD, corner_radius=0)
+        super().__init__(parent, fg_color="transparent", corner_radius=0)
         self._build()
 
     def _build(self):
-        tabs = ctk.CTkTabview(self, fg_color=SURFACE_CARD,
-                               segmented_button_fg_color=OUTLINE,
-                               segmented_button_selected_color=PRIMARY,
-                               segmented_button_selected_hover_color=DEEP_NAVY,
-                               segmented_button_unselected_color=OUTLINE,
-                               segmented_button_unselected_hover_color="#c8cdd5",
-                               text_color=ON_SURFACE,
-                               text_color_disabled=ON_SURFACE_VAR)
-        tabs.pack(fill="both", expand=True)
-        tabs.add("dB ↔ Linéaire")
-        tabs.add("dBm ↔ mW")
-        self._build_db_linear(tabs.tab("dB ↔ Linéaire"))
-        self._build_dbm_mw(tabs.tab("dBm ↔ mW"))
+        self.grid_columnconfigure(0, weight=3)
+        self.grid_columnconfigure(1, weight=4)
+        self.grid_rowconfigure(0, weight=1)
 
-    # ── Onglet 1 : dB ↔ Linéaire ─────────────────────────────────────────────
+        # ── Carte gauche : paramètres ─────────────────────────────────────────
+        left = ctk.CTkFrame(self, fg_color=WHITE, corner_radius=RADIUS,
+                             border_width=1, border_color=OUTLINE)
+        left.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+        left.grid_columnconfigure(0, weight=1)
 
-    def _build_db_linear(self, tab):
-        f = ctk.CTkFrame(tab, fg_color=SURFACE_CARD)
-        f.pack(padx=8, pady=16, anchor="w")
+        # Header carte gauche
+        h = ctk.CTkFrame(left, fg_color=WHITE, corner_radius=0)
+        h.grid(row=0, column=0, sticky="ew", padx=20, pady=(18, 14))
+        ctk.CTkLabel(h, text="⇄  PARAMÈTRES D'ENTRÉE",
+                     font=ctk.CTkFont(size=11, weight="bold"),
+                     text_color=PRIMARY).pack(side="left")
 
-        ctk.CTkLabel(f, text="Remplissez un seul champ — l'autre se désactive automatiquement.",
-                     font=ctk.CTkFont(size=10), text_color=ON_SURFACE_VAR).grid(
-            row=0, column=0, columnspan=2, sticky="w", pady=(0, 18))
+        ctk.CTkFrame(left, height=1, fg_color=OUTLINE).grid(
+            row=1, column=0, sticky="ew", padx=0)
 
-        _make_label(f, "Valeur en dB :").grid(row=1, column=0, sticky="w", pady=10)
-        self.var_db = ctk.StringVar()
-        self.e_db = _make_entry(f, "ex: 3", self.var_db)
-        self.e_db.grid(row=1, column=1, padx=16)
+        body = ctk.CTkFrame(left, fg_color=WHITE, corner_radius=0)
+        body.grid(row=2, column=0, sticky="nsew", padx=20, pady=16)
+        body.grid_columnconfigure(0, weight=1)
+        left.grid_rowconfigure(2, weight=1)
 
-        _make_label(f, "Valeur linéaire :").grid(row=2, column=0, sticky="w", pady=10)
-        self.var_lin = ctk.StringVar()
-        self.e_lin = _make_entry(f, "ex: 2", self.var_lin)
-        self.e_lin.grid(row=2, column=1, padx=16)
+        # Champ de valeur
+        ctk.CTkLabel(body, text="Valeur à convertir", text_color=ON_SURFACE_VAR,
+                     font=ctk.CTkFont(size=11)).grid(row=0, column=0, sticky="w", pady=(0, 4))
+        self.var_val = ctk.StringVar()
+        self.entry_val = ctk.CTkEntry(body, textvariable=self.var_val,
+                                       placeholder_text="Ex: 10",
+                                       font=ctk.CTkFont(size=14), height=46,
+                                       corner_radius=RADIUS, border_color=PRIMARY,
+                                       border_width=2, fg_color=WHITE)
+        self.entry_val.grid(row=1, column=0, sticky="ew", pady=(0, 18))
 
-        _make_btn(f, "Calculer →", self._calc_db_linear).grid(
-            row=3, column=0, columnspan=2, sticky="w", pady=22)
+        # Toggle direction
+        ctk.CTkLabel(body, text="Unité Source", text_color=ON_SURFACE_VAR,
+                     font=ctk.CTkFont(size=11)).grid(row=2, column=0, sticky="w", pady=(0, 4))
+        self.seg = ctk.CTkSegmentedButton(
+            body,
+            values=["Décibel (dB)", "Réelle (Linéaire)"],
+            fg_color=SURFACE_CARD,
+            selected_color=PRIMARY,
+            selected_hover_color=DEEP_NAVY,
+            unselected_color=SURFACE_CARD,
+            unselected_hover_color=OUTLINE,
+            text_color=ON_SURFACE,
+            font=ctk.CTkFont(size=11),
+            corner_radius=RADIUS,
+        )
+        self.seg.grid(row=3, column=0, sticky="ew", pady=(0, 18))
+        self.seg.set("Décibel (dB)")
 
-        self.r_db = ctk.CTkLabel(f, text="", font=ctk.CTkFont(size=14, weight="bold"),
-                                  text_color=OK)
-        self.r_db.grid(row=4, column=0, columnspan=2, sticky="w")
+        # Option type de grandeur
+        ctk.CTkLabel(body, text="Type de Grandeur", text_color=ON_SURFACE_VAR,
+                     font=ctk.CTkFont(size=11)).grid(row=4, column=0, sticky="w", pady=(0, 4))
+        self.opt = ctk.CTkOptionMenu(
+            body,
+            values=["Puissance  (P = 10 · log₁₀)", "Tension  (V = 20 · log₁₀)"],
+            fg_color=SURFACE_CARD, button_color=PRIMARY,
+            button_hover_color=DEEP_NAVY, text_color=ON_SURFACE,
+            font=ctk.CTkFont(size=11), corner_radius=RADIUS,
+        )
+        self.opt.grid(row=5, column=0, sticky="ew", pady=(0, 24))
+        self.opt.set("Puissance  (P = 10 · log₁₀)")
 
-        # Désactivation mutuelle
-        self.var_db.trace_add("write", self._on_db_change)
-        self.var_lin.trace_add("write", self._on_lin_change)
+        # Bouton calculer
+        ctk.CTkButton(body, text="▣  CALCULER", command=self._calculate,
+                       font=ctk.CTkFont(size=13, weight="bold"),
+                       height=46, corner_radius=RADIUS,
+                       fg_color=PRIMARY, hover_color=DEEP_NAVY).grid(
+            row=6, column=0, sticky="ew")
 
-    def _on_db_change(self, *_):
-        if self.var_db.get():
-            _disable(self.e_lin)
-        else:
-            _enable(self.e_lin)
+        # Rappels techniques
+        rappels = ctk.CTkFrame(left, fg_color=SURFACE_CARD, corner_radius=RADIUS)
+        rappels.grid(row=3, column=0, sticky="ew", padx=20, pady=(12, 20))
+        rappels.grid_columnconfigure(1, weight=1)
 
-    def _on_lin_change(self, *_):
-        if self.var_lin.get():
-            _disable(self.e_db)
-        else:
-            _enable(self.e_db)
+        ctk.CTkLabel(rappels, text="ⓘ  RAPPELS TECHNIQUES",
+                     font=ctk.CTkFont(size=10, weight="bold"),
+                     text_color=ON_SURFACE_VAR).grid(
+            row=0, column=0, columnspan=2, sticky="w", padx=12, pady=(10, 8))
 
-    def _calc_db_linear(self):
-        db, lin = self.var_db.get().strip(), self.var_lin.get().strip()
+        for i, (gauche, droite) in enumerate([
+            ("0 dBm", "1 mW"),
+            ("3 dB", "Puissance × 2"),
+            ("10 dB", "Puissance × 10"),
+            ("20 dB", "Tension × 10"),
+        ]):
+            ctk.CTkLabel(rappels, text=gauche, font=ctk.CTkFont(size=11, weight="bold"),
+                         text_color=ON_SURFACE).grid(row=i+1, column=0, sticky="w", padx=12, pady=3)
+            ctk.CTkLabel(rappels, text=droite, font=ctk.CTkFont(size=11),
+                         text_color=ON_SURFACE_VAR).grid(row=i+1, column=1, sticky="e", padx=12, pady=3)
+        ctk.CTkFrame(rappels, height=8, fg_color=SURFACE_CARD).grid(row=6, column=0)
+
+        # ── Carte droite : résultat ───────────────────────────────────────────
+        right = ctk.CTkFrame(self, fg_color=WHITE, corner_radius=RADIUS,
+                              border_width=1, border_color=OUTLINE)
+        right.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
+        right.grid_columnconfigure(0, weight=1)
+        right.grid_rowconfigure(2, weight=1)
+
+        rh = ctk.CTkFrame(right, fg_color=WHITE, corner_radius=0)
+        rh.grid(row=0, column=0, sticky="ew", padx=20, pady=(18, 14))
+        ctk.CTkLabel(rh, text="▣  RÉSULTAT D'ANALYSE",
+                     font=ctk.CTkFont(size=11, weight="bold"),
+                     text_color=ACCENT_AMBER).pack(side="left")
+
+        ctk.CTkFrame(right, height=1, fg_color=OUTLINE).grid(
+            row=1, column=0, sticky="ew")
+
+        result_body = ctk.CTkFrame(right, fg_color=WHITE, corner_radius=0)
+        result_body.grid(row=2, column=0, sticky="nsew")
+        result_body.grid_columnconfigure(0, weight=1)
+        result_body.grid_rowconfigure(0, weight=1)
+
+        # Zone résultat (centrée)
+        self.result_zone = ctk.CTkFrame(result_body, fg_color=WHITE, corner_radius=0)
+        self.result_zone.place(relx=0.5, rely=0.5, anchor="center")
+
+        self.result_val = ctk.CTkLabel(self.result_zone, text="—",
+                                        font=ctk.CTkFont(size=38, weight="bold"),
+                                        text_color=DEEP_NAVY)
+        self.result_val.pack()
+
+        self.result_unit = ctk.CTkLabel(self.result_zone, text="",
+                                         font=ctk.CTkFont(size=14),
+                                         text_color=ON_SURFACE_VAR)
+        self.result_unit.pack(pady=(4, 0))
+
+        self.result_formula = ctk.CTkLabel(self.result_zone, text="",
+                                            font=ctk.CTkFont(size=11, slant="italic"),
+                                            text_color=ON_SURFACE_VAR)
+        self.result_formula.pack(pady=(12, 0))
+
+        self.result_err = ctk.CTkLabel(result_body, text="",
+                                        font=ctk.CTkFont(size=12),
+                                        text_color=ERR)
+        self.result_err.grid(row=1, column=0, pady=(0, 16))
+
+    def _calculate(self):
+        val_str = self.var_val.get().strip()
+        if not val_str:
+            self.result_val.configure(text="—", text_color=DEEP_NAVY)
+            self.result_unit.configure(text="Entrez une valeur")
+            self.result_formula.configure(text="")
+            self.result_err.configure(text="")
+            return
+
+        factor = 20 if "Tension" in self.opt.get() else 10
+        direction = self.seg.get()
+
         try:
-            if db and not lin:
-                self.r_db.configure(
-                    text=f"Valeur linéaire = {db_to_linear(float(db)):.6g}",
-                    text_color=OK)
-            elif lin and not db:
-                self.r_db.configure(
-                    text=f"Valeur en dB = {linear_to_db(float(lin)):.4f} dB",
-                    text_color=OK)
+            val = float(val_str)
+            if direction == "Décibel (dB)":
+                result = db_to_linear(val, factor)
+                self.result_val.configure(text=f"{result:.6g}", text_color=DEEP_NAVY)
+                self.result_unit.configure(text="valeur linéaire")
+                self.result_formula.configure(
+                    text=f"10^({val}/{factor}) = {result:.6g}")
             else:
-                self.r_db.configure(text="Remplissez exactement un seul champ.",
-                                    text_color=ERR)
+                result = linear_to_db(val, factor)
+                self.result_val.configure(text=f"{result:.4f}", text_color=DEEP_NAVY)
+                self.result_unit.configure(text="dB")
+                self.result_formula.configure(
+                    text=f"{factor} · log₁₀({val}) = {result:.4f} dB")
+            self.result_err.configure(text="")
         except ValueError as e:
-            self.r_db.configure(text=str(e), text_color=ERR)
-
-    # ── Onglet 2 : dBm ↔ mW ─────────────────────────────────────────────────
-
-    def _build_dbm_mw(self, tab):
-        f = ctk.CTkFrame(tab, fg_color=SURFACE_CARD)
-        f.pack(padx=8, pady=16, anchor="w")
-
-        ctk.CTkLabel(f, text="Remplissez un seul champ — l'autre se désactive automatiquement.",
-                     font=ctk.CTkFont(size=10), text_color=ON_SURFACE_VAR).grid(
-            row=0, column=0, columnspan=2, sticky="w", pady=(0, 18))
-
-        _make_label(f, "Valeur en dBm :").grid(row=1, column=0, sticky="w", pady=10)
-        self.var_dbm = ctk.StringVar()
-        self.e_dbm = _make_entry(f, "ex: 0", self.var_dbm)
-        self.e_dbm.grid(row=1, column=1, padx=16)
-
-        _make_label(f, "Valeur en mW :").grid(row=2, column=0, sticky="w", pady=10)
-        self.var_mw = ctk.StringVar()
-        self.e_mw = _make_entry(f, "ex: 1", self.var_mw)
-        self.e_mw.grid(row=2, column=1, padx=16)
-
-        _make_btn(f, "Calculer →", self._calc_dbm_mw).grid(
-            row=3, column=0, columnspan=2, sticky="w", pady=22)
-
-        self.r_dbm = ctk.CTkLabel(f, text="", font=ctk.CTkFont(size=14, weight="bold"),
-                                   text_color=OK)
-        self.r_dbm.grid(row=4, column=0, columnspan=2, sticky="w")
-
-        self.var_dbm.trace_add("write", self._on_dbm_change)
-        self.var_mw.trace_add("write", self._on_mw_change)
-
-    def _on_dbm_change(self, *_):
-        if self.var_dbm.get():
-            _disable(self.e_mw)
-        else:
-            _enable(self.e_mw)
-
-    def _on_mw_change(self, *_):
-        if self.var_mw.get():
-            _disable(self.e_dbm)
-        else:
-            _enable(self.e_dbm)
-
-    def _calc_dbm_mw(self):
-        dbm, mw = self.var_dbm.get().strip(), self.var_mw.get().strip()
-        try:
-            if dbm and not mw:
-                self.r_dbm.configure(
-                    text=f"Puissance = {dbm_to_mw(float(dbm)):.6g} mW",
-                    text_color=OK)
-            elif mw and not dbm:
-                self.r_dbm.configure(
-                    text=f"Puissance = {mw_to_dbm(float(mw)):.4f} dBm",
-                    text_color=OK)
-            else:
-                self.r_dbm.configure(text="Remplissez exactement un seul champ.",
-                                     text_color=ERR)
-        except ValueError as e:
-            self.r_dbm.configure(text=str(e), text_color=ERR)
+            self.result_val.configure(text="Erreur", text_color=ERR)
+            self.result_unit.configure(text="")
+            self.result_formula.configure(text="")
+            self.result_err.configure(text=str(e))
