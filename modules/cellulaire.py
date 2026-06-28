@@ -5,13 +5,18 @@ import matplotlib.patches as mpatches
 import matplotlib.colors as mcolors
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
-CARD = "#ffffff"
-OK   = "#27ae60"
-ERR  = "#e74c3c"
-TEXT = "#2c3e50"
+PRIMARY        = "#0056B3"
+DEEP_NAVY      = "#002D62"
+SURFACE_CARD   = "#F2F3FC"
+OUTLINE        = "#D9D9E2"
+ON_SURFACE     = "#212529"
+ON_SURFACE_VAR = "#495057"
+OK             = "#27ae60"
+ERR            = "#e74c3c"
+RADIUS         = 4
 
 
-# ── Calculs ──────────────────────────────────────────────────────────────────
+# ── Calculs ───────────────────────────────────────────────────────────────────
 
 def calc_N(i: int, j: int) -> int:
     return i * i + i * j + j * j
@@ -35,37 +40,38 @@ def _hex_grid(N, rings=3):
 
 class CellulairFrame(ctk.CTkFrame):
     def __init__(self, parent):
-        super().__init__(parent, fg_color=CARD, corner_radius=0)
+        super().__init__(parent, fg_color=SURFACE_CARD, corner_radius=0)
         self._build()
 
     def _build(self):
-        # Barre de saisie en haut
-        top = ctk.CTkFrame(self, fg_color=CARD)
+        top = ctk.CTkFrame(self, fg_color=SURFACE_CARD)
         top.pack(fill="x", pady=(0, 8))
 
-        ctk.CTkLabel(top, text="i :", text_color=TEXT,
+        ctk.CTkLabel(top, text="i :", text_color=ON_SURFACE,
                      font=ctk.CTkFont(size=12)).pack(side="left", padx=(0, 4))
-        self.e_i = ctk.CTkEntry(top, width=70, placeholder_text="ex: 2",
-                                 font=ctk.CTkFont(size=12))
-        self.e_i.pack(side="left", padx=(0, 18))
+        self.e_i = ctk.CTkEntry(top, width=80, placeholder_text="ex: 2",
+                                 font=ctk.CTkFont(size=12), corner_radius=RADIUS,
+                                 border_color=OUTLINE, fg_color="white")
+        self.e_i.pack(side="left", padx=(0, 20))
 
-        ctk.CTkLabel(top, text="j :", text_color=TEXT,
+        ctk.CTkLabel(top, text="j :", text_color=ON_SURFACE,
                      font=ctk.CTkFont(size=12)).pack(side="left", padx=(0, 4))
-        self.e_j = ctk.CTkEntry(top, width=70, placeholder_text="ex: 1",
-                                 font=ctk.CTkFont(size=12))
-        self.e_j.pack(side="left", padx=(0, 24))
+        self.e_j = ctk.CTkEntry(top, width=80, placeholder_text="ex: 1",
+                                 font=ctk.CTkFont(size=12), corner_radius=RADIUS,
+                                 border_color=OUTLINE, fg_color="white")
+        self.e_j.pack(side="left", padx=(0, 26))
 
         ctk.CTkButton(top, text="Calculer et Afficher →", command=self._calculate,
                       font=ctk.CTkFont(size=12, weight="bold"),
-                      height=36, corner_radius=8, width=200).pack(side="left")
+                      height=36, corner_radius=RADIUS, width=210,
+                      fg_color=PRIMARY, hover_color=DEEP_NAVY).pack(side="left")
 
         self.result = ctk.CTkLabel(self, text="",
                                     font=ctk.CTkFont(size=13, weight="bold"),
                                     text_color=OK, justify="left")
         self.result.pack(anchor="w", pady=(0, 6))
 
-        # Zone graphique
-        self.plot_frame = ctk.CTkFrame(self, fg_color=CARD, corner_radius=0)
+        self.plot_frame = ctk.CTkFrame(self, fg_color=SURFACE_CARD, corner_radius=0)
         self.plot_frame.pack(fill="both", expand=True)
 
     def _calculate(self):
@@ -90,8 +96,8 @@ class CellulairFrame(ctk.CTkFrame):
         cmap   = plt.get_cmap("tab20", max(N, 1))
         colors = [mcolors.to_hex(cmap(k % N)) for k in range(N)]
 
-        fig, ax = plt.subplots(figsize=(6, 4.2), facecolor=CARD)
-        ax.set_facecolor(CARD)
+        fig, ax = plt.subplots(figsize=(6, 4.2), facecolor=SURFACE_CARD)
+        ax.set_facecolor(SURFACE_CARD)
 
         for cx, cy, cid in _hex_grid(N, rings=3):
             patch = mpatches.Polygon(_hex_vertices(cx, cy, 0.92), closed=True,
@@ -104,15 +110,13 @@ class CellulairFrame(ctk.CTkFrame):
         ax.set_aspect("equal")
         ax.autoscale_view()
         ax.axis("off")
-        ax.set_title(f"Motif de réutilisation — N = {N}",
-                     fontsize=11, color=TEXT, pad=10)
+        ax.set_title(f"Motif de réutilisation de fréquences — N = {N}",
+                     fontsize=11, color=DEEP_NAVY, pad=10, fontweight="bold")
         fig.tight_layout()
 
         canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)
         canvas.draw()
-
         toolbar = NavigationToolbar2Tk(canvas, self.plot_frame)
         toolbar.update()
-
         canvas.get_tk_widget().pack(fill="both", expand=True)
         plt.close(fig)

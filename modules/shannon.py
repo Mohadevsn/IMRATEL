@@ -1,14 +1,18 @@
 import math
 import customtkinter as ctk
 
-CARD = "#ffffff"
-OK   = "#27ae60"
-ERR  = "#e74c3c"
-HINT = "#95a5a6"
-TEXT = "#2c3e50"
+PRIMARY        = "#0056B3"
+DEEP_NAVY      = "#002D62"
+SURFACE_CARD   = "#F2F3FC"
+OUTLINE        = "#D9D9E2"
+ON_SURFACE     = "#212529"
+ON_SURFACE_VAR = "#495057"
+OK             = "#27ae60"
+ERR            = "#e74c3c"
+RADIUS         = 4
 
 
-# ── Calculs ──────────────────────────────────────────────────────────────────
+# ── Calculs ───────────────────────────────────────────────────────────────────
 
 def shannon_capacity(bandwidth_hz: float, snr_linear: float) -> float:
     return bandwidth_hz * math.log2(1 + snr_linear)
@@ -31,26 +35,39 @@ def format_bitrate(bps: float) -> str:
     return f"{bps:.4f} bit/s"
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Helpers UI ────────────────────────────────────────────────────────────────
 
-def _entry(parent, placeholder=""):
-    return ctk.CTkEntry(parent, width=200, placeholder_text=placeholder,
-                        font=ctk.CTkFont(size=12))
+def _entry(parent, placeholder):
+    return ctk.CTkEntry(parent, width=210, placeholder_text=placeholder,
+                        font=ctk.CTkFont(size=12), corner_radius=RADIUS,
+                        border_color=OUTLINE, fg_color="white")
 
 def _btn(parent, text, cmd):
     return ctk.CTkButton(parent, text=text, command=cmd, width=160,
-                         font=ctk.CTkFont(size=12, weight="bold"), height=38, corner_radius=8)
+                         font=ctk.CTkFont(size=12, weight="bold"),
+                         height=38, corner_radius=RADIUS,
+                         fg_color=PRIMARY, hover_color=DEEP_NAVY)
+
+def _label(parent, text):
+    return ctk.CTkLabel(parent, text=text, font=ctk.CTkFont(size=12),
+                        text_color=ON_SURFACE)
 
 
 # ── Frame principale ──────────────────────────────────────────────────────────
 
 class ShannonFrame(ctk.CTkFrame):
     def __init__(self, parent):
-        super().__init__(parent, fg_color=CARD, corner_radius=0)
+        super().__init__(parent, fg_color=SURFACE_CARD, corner_radius=0)
         self._build()
 
     def _build(self):
-        tabs = ctk.CTkTabview(self, fg_color=CARD)
+        tabs = ctk.CTkTabview(self, fg_color=SURFACE_CARD,
+                               segmented_button_fg_color=OUTLINE,
+                               segmented_button_selected_color=PRIMARY,
+                               segmented_button_selected_hover_color=DEEP_NAVY,
+                               segmented_button_unselected_color=OUTLINE,
+                               segmented_button_unselected_hover_color="#c8cdd5",
+                               text_color=ON_SURFACE)
         tabs.pack(fill="both", expand=True)
         tabs.add("Shannon")
         tabs.add("Nyquist")
@@ -60,21 +77,19 @@ class ShannonFrame(ctk.CTkFrame):
     # ── Shannon ──────────────────────────────────────────────────────────────
 
     def _build_shannon(self, tab):
-        f = ctk.CTkFrame(tab, fg_color=CARD)
+        f = ctk.CTkFrame(tab, fg_color=SURFACE_CARD)
         f.pack(padx=8, pady=16, anchor="w")
 
         ctk.CTkLabel(f, text="C = B · log₂(1 + S/B)",
                      font=ctk.CTkFont(size=13, slant="italic"),
-                     text_color=HINT).grid(row=0, column=0, columnspan=2,
-                                           sticky="w", pady=(0, 20))
+                     text_color=ON_SURFACE_VAR).grid(
+            row=0, column=0, columnspan=2, sticky="w", pady=(0, 20))
 
-        ctk.CTkLabel(f, text="Bande passante B (Hz) :", text_color=TEXT,
-                     font=ctk.CTkFont(size=12)).grid(row=1, column=0, sticky="w", pady=10)
+        _label(f, "Bande passante B (Hz) :").grid(row=1, column=0, sticky="w", pady=10)
         self.e_s_bw = _entry(f, "ex: 4000")
         self.e_s_bw.grid(row=1, column=1, padx=16)
 
-        ctk.CTkLabel(f, text="Rapport S/B (dB) :", text_color=TEXT,
-                     font=ctk.CTkFont(size=12)).grid(row=2, column=0, sticky="w", pady=10)
+        _label(f, "Rapport S/B (dB) :").grid(row=2, column=0, sticky="w", pady=10)
         self.e_s_snr = _entry(f, "ex: 30")
         self.e_s_snr.grid(row=2, column=1, padx=16)
 
@@ -98,21 +113,19 @@ class ShannonFrame(ctk.CTkFrame):
     # ── Nyquist ──────────────────────────────────────────────────────────────
 
     def _build_nyquist(self, tab):
-        f = ctk.CTkFrame(tab, fg_color=CARD)
+        f = ctk.CTkFrame(tab, fg_color=SURFACE_CARD)
         f.pack(padx=8, pady=16, anchor="w")
 
         ctk.CTkLabel(f, text="C = 2B · log₂(M)",
                      font=ctk.CTkFont(size=13, slant="italic"),
-                     text_color=HINT).grid(row=0, column=0, columnspan=2,
-                                           sticky="w", pady=(0, 20))
+                     text_color=ON_SURFACE_VAR).grid(
+            row=0, column=0, columnspan=2, sticky="w", pady=(0, 20))
 
-        ctk.CTkLabel(f, text="Bande passante B (Hz) :", text_color=TEXT,
-                     font=ctk.CTkFont(size=12)).grid(row=1, column=0, sticky="w", pady=10)
+        _label(f, "Bande passante B (Hz) :").grid(row=1, column=0, sticky="w", pady=10)
         self.e_n_bw = _entry(f, "ex: 4000")
         self.e_n_bw.grid(row=1, column=1, padx=16)
 
-        ctk.CTkLabel(f, text="Nombre de niveaux M :", text_color=TEXT,
-                     font=ctk.CTkFont(size=12)).grid(row=2, column=0, sticky="w", pady=10)
+        _label(f, "Nombre de niveaux M :").grid(row=2, column=0, sticky="w", pady=10)
         self.e_n_m = _entry(f, "ex: 8")
         self.e_n_m.grid(row=2, column=1, padx=16)
 
