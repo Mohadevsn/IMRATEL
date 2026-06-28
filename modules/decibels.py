@@ -1,23 +1,25 @@
 import math
-import tkinter as tk
-from tkinter import ttk
+import customtkinter as ctk
+
+CARD  = "#ffffff"
+OK    = "#27ae60"
+ERR   = "#e74c3c"
+HINT  = "#95a5a6"
+TEXT  = "#2c3e50"
 
 
-# --- Fonctions de calcul ---
+# ── Calculs ──────────────────────────────────────────────────────────────────
 
 def db_to_linear(db: float) -> float:
     return 10 ** (db / 10)
-
 
 def linear_to_db(linear: float) -> float:
     if linear <= 0:
         raise ValueError("La valeur linéaire doit être strictement positive.")
     return 10 * math.log10(linear)
 
-
 def dbm_to_mw(dbm: float) -> float:
     return 10 ** (dbm / 10)
-
 
 def mw_to_dbm(mw: float) -> float:
     if mw <= 0:
@@ -25,96 +27,116 @@ def mw_to_dbm(mw: float) -> float:
     return 10 * math.log10(mw)
 
 
-# --- Interface graphique ---
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-class DecibelFrame(tk.Frame):
+def _entry(parent, placeholder=""):
+    return ctk.CTkEntry(parent, width=200, placeholder_text=placeholder,
+                        font=ctk.CTkFont(size=12))
+
+def _btn(parent, text, cmd):
+    return ctk.CTkButton(parent, text=text, command=cmd, width=160,
+                         font=ctk.CTkFont(size=12, weight="bold"), height=38, corner_radius=8)
+
+def _hint(parent, text):
+    return ctk.CTkLabel(parent, text=text, font=ctk.CTkFont(size=10),
+                        text_color=HINT)
+
+def _result_label(parent):
+    return ctk.CTkLabel(parent, text="", font=ctk.CTkFont(size=14, weight="bold"),
+                        text_color=OK)
+
+
+# ── Frame principale ──────────────────────────────────────────────────────────
+
+class DecibelFrame(ctk.CTkFrame):
     def __init__(self, parent):
-        super().__init__(parent, bg="#f0f2f5")
+        super().__init__(parent, fg_color=CARD, corner_radius=0)
         self._build()
 
     def _build(self):
-        tk.Label(self, text="Conversion Décibels", font=("Helvetica", 16, "bold"),
-                 bg="#f0f2f5", fg="#1e2a38").pack(anchor="w", pady=(0, 20))
+        tabs = ctk.CTkTabview(self, fg_color=CARD)
+        tabs.pack(fill="both", expand=True)
 
-        notebook = ttk.Notebook(self)
-        notebook.pack(fill=tk.BOTH, expand=True)
+        tabs.add("dB ↔ Linéaire")
+        tabs.add("dBm ↔ mW")
 
-        # Onglet dB <-> linéaire
-        tab_db = tk.Frame(notebook, bg="#f0f2f5")
-        notebook.add(tab_db, text="dB ↔ Linéaire")
-        self._build_db_linear(tab_db)
+        self._build_db_linear(tabs.tab("dB ↔ Linéaire"))
+        self._build_dbm_mw(tabs.tab("dBm ↔ mW"))
 
-        # Onglet dBm <-> mW
-        tab_dbm = tk.Frame(notebook, bg="#f0f2f5")
-        notebook.add(tab_dbm, text="dBm ↔ mW")
-        self._build_dbm_mw(tab_dbm)
+    # ── Onglet 1 ─────────────────────────────────────────────────────────────
 
-    def _build_db_linear(self, parent):
-        frame = tk.Frame(parent, bg="#f0f2f5")
-        frame.pack(padx=20, pady=20, anchor="w")
+    def _build_db_linear(self, tab):
+        f = ctk.CTkFrame(tab, fg_color=CARD)
+        f.pack(padx=8, pady=16, anchor="w")
 
-        tk.Label(frame, text="Valeur en dB :", bg="#f0f2f5").grid(row=0, column=0, sticky="w", pady=5)
-        self.entry_db = tk.Entry(frame, width=20)
-        self.entry_db.grid(row=0, column=1, padx=10)
+        _hint(f, "Remplissez un seul champ — laissez l'autre vide.").grid(
+            row=0, column=0, columnspan=2, sticky="w", pady=(0, 18))
 
-        tk.Label(frame, text="Valeur linéaire :", bg="#f0f2f5").grid(row=1, column=0, sticky="w", pady=5)
-        self.entry_linear = tk.Entry(frame, width=20)
-        self.entry_linear.grid(row=1, column=1, padx=10)
+        ctk.CTkLabel(f, text="Valeur en dB :", text_color=TEXT,
+                     font=ctk.CTkFont(size=12)).grid(row=1, column=0, sticky="w", pady=10)
+        self.e_db = _entry(f, "ex: 3")
+        self.e_db.grid(row=1, column=1, padx=16)
 
-        tk.Button(frame, text="Calculer →", command=self._calc_db_linear,
-                  bg="#2c3e50", fg="white", relief=tk.FLAT, padx=15, pady=6,
-                  cursor="hand2").grid(row=2, column=0, columnspan=2, pady=15)
+        ctk.CTkLabel(f, text="Valeur linéaire :", text_color=TEXT,
+                     font=ctk.CTkFont(size=12)).grid(row=2, column=0, sticky="w", pady=10)
+        self.e_lin = _entry(f, "ex: 2")
+        self.e_lin.grid(row=2, column=1, padx=16)
 
-        self.result_db = tk.Label(frame, text="", bg="#f0f2f5", fg="#27ae60",
-                                   font=("Helvetica", 12, "bold"))
-        self.result_db.grid(row=3, column=0, columnspan=2)
+        _btn(f, "Calculer →", self._calc_db_linear).grid(
+            row=3, column=0, columnspan=2, sticky="w", pady=22)
+
+        self.r_db = _result_label(f)
+        self.r_db.grid(row=4, column=0, columnspan=2, sticky="w")
 
     def _calc_db_linear(self):
-        db_val = self.entry_db.get().strip()
-        lin_val = self.entry_linear.get().strip()
+        db, lin = self.e_db.get().strip(), self.e_lin.get().strip()
         try:
-            if db_val and not lin_val:
-                result = db_to_linear(float(db_val))
-                self.result_db.config(text=f"Valeur linéaire = {result:.6g}", fg="#27ae60")
-            elif lin_val and not db_val:
-                result = linear_to_db(float(lin_val))
-                self.result_db.config(text=f"Valeur en dB = {result:.4f} dB", fg="#27ae60")
+            if db and not lin:
+                self.r_db.configure(text=f"Valeur linéaire = {db_to_linear(float(db)):.6g}",
+                                    text_color=OK)
+            elif lin and not db:
+                self.r_db.configure(text=f"Valeur en dB = {linear_to_db(float(lin)):.4f} dB",
+                                    text_color=OK)
             else:
-                self.result_db.config(text="Remplissez exactement un seul champ.", fg="#e74c3c")
+                self.r_db.configure(text="Remplissez exactement un seul champ.", text_color=ERR)
         except ValueError as e:
-            self.result_db.config(text=str(e), fg="#e74c3c")
+            self.r_db.configure(text=str(e), text_color=ERR)
 
-    def _build_dbm_mw(self, parent):
-        frame = tk.Frame(parent, bg="#f0f2f5")
-        frame.pack(padx=20, pady=20, anchor="w")
+    # ── Onglet 2 ─────────────────────────────────────────────────────────────
 
-        tk.Label(frame, text="Valeur en dBm :", bg="#f0f2f5").grid(row=0, column=0, sticky="w", pady=5)
-        self.entry_dbm = tk.Entry(frame, width=20)
-        self.entry_dbm.grid(row=0, column=1, padx=10)
+    def _build_dbm_mw(self, tab):
+        f = ctk.CTkFrame(tab, fg_color=CARD)
+        f.pack(padx=8, pady=16, anchor="w")
 
-        tk.Label(frame, text="Valeur en mW :", bg="#f0f2f5").grid(row=1, column=0, sticky="w", pady=5)
-        self.entry_mw = tk.Entry(frame, width=20)
-        self.entry_mw.grid(row=1, column=1, padx=10)
+        _hint(f, "Remplissez un seul champ — laissez l'autre vide.").grid(
+            row=0, column=0, columnspan=2, sticky="w", pady=(0, 18))
 
-        tk.Button(frame, text="Calculer →", command=self._calc_dbm_mw,
-                  bg="#2c3e50", fg="white", relief=tk.FLAT, padx=15, pady=6,
-                  cursor="hand2").grid(row=2, column=0, columnspan=2, pady=15)
+        ctk.CTkLabel(f, text="Valeur en dBm :", text_color=TEXT,
+                     font=ctk.CTkFont(size=12)).grid(row=1, column=0, sticky="w", pady=10)
+        self.e_dbm = _entry(f, "ex: 0")
+        self.e_dbm.grid(row=1, column=1, padx=16)
 
-        self.result_dbm = tk.Label(frame, text="", bg="#f0f2f5", fg="#27ae60",
-                                    font=("Helvetica", 12, "bold"))
-        self.result_dbm.grid(row=3, column=0, columnspan=2)
+        ctk.CTkLabel(f, text="Valeur en mW :", text_color=TEXT,
+                     font=ctk.CTkFont(size=12)).grid(row=2, column=0, sticky="w", pady=10)
+        self.e_mw = _entry(f, "ex: 1")
+        self.e_mw.grid(row=2, column=1, padx=16)
+
+        _btn(f, "Calculer →", self._calc_dbm_mw).grid(
+            row=3, column=0, columnspan=2, sticky="w", pady=22)
+
+        self.r_dbm = _result_label(f)
+        self.r_dbm.grid(row=4, column=0, columnspan=2, sticky="w")
 
     def _calc_dbm_mw(self):
-        dbm_val = self.entry_dbm.get().strip()
-        mw_val = self.entry_mw.get().strip()
+        dbm, mw = self.e_dbm.get().strip(), self.e_mw.get().strip()
         try:
-            if dbm_val and not mw_val:
-                result = dbm_to_mw(float(dbm_val))
-                self.result_dbm.config(text=f"Puissance = {result:.6g} mW", fg="#27ae60")
-            elif mw_val and not dbm_val:
-                result = mw_to_dbm(float(mw_val))
-                self.result_dbm.config(text=f"Puissance = {result:.4f} dBm", fg="#27ae60")
+            if dbm and not mw:
+                self.r_dbm.configure(text=f"Puissance = {dbm_to_mw(float(dbm)):.6g} mW",
+                                     text_color=OK)
+            elif mw and not dbm:
+                self.r_dbm.configure(text=f"Puissance = {mw_to_dbm(float(mw)):.4f} dBm",
+                                     text_color=OK)
             else:
-                self.result_dbm.config(text="Remplissez exactement un seul champ.", fg="#e74c3c")
+                self.r_dbm.configure(text="Remplissez exactement un seul champ.", text_color=ERR)
         except ValueError as e:
-            self.result_dbm.config(text=str(e), fg="#e74c3c")
+            self.r_dbm.configure(text=str(e), text_color=ERR)
