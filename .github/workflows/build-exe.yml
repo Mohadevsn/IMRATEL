@@ -1,4 +1,4 @@
-name: Build Windows executable
+name: Build executables
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,3 +31,32 @@ jobs:
         with:
           name: IMRATEL-windows-exe
           path: dist/IMRATEL.exe
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pillow
+
+      - name: Convert icon to .icns
+        run: python -c "from PIL import Image; Image.open('imaratel.png').save('icon.icns')"
+
+      - name: Build app
+        run: pyinstaller --name IMRATEL --windowed --icon=icon.icns main.py
+
+      - name: Zip app bundle
+        run: ditto -c -k --sequesterRsrc --keepParent dist/IMRATEL.app dist/IMRATEL-macos.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: IMRATEL-macos-app
+          path: dist/IMRATEL-macos.zip
